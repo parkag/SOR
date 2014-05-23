@@ -36,7 +36,7 @@ def run_SOR(A, b):
                 x[i] = x[i] + w*( (b[i]-s)/A[i,i] -x[i])
 
     print "SOR: x=", x
-    print residual(A, x, b)
+    print "norm = ", residual(A, x, b)
 
 def residual(A, x, b):
    return  np.linalg.norm(b - np.dot(A,x))
@@ -72,14 +72,13 @@ indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
 indptrB -= 1
 
 A = csc_matrix((dataA, indicesA, indptrA))
-print A
-print A.shape
+#print A
+#print A.shape
 #print A.todense()
 
 b=np.array(dataB)
 #b = csc_matrix((dataB, indicesB, indptrB), shape=(A.shape[0], 1), copy=True)
-
-print b
-print b.shape
+#print b
+#print b.shape
 
 run_SOR(A,b)

@@ -12,7 +12,7 @@ A^-1 * A * x = A^-1 * b
 1 * x = A^-1 * b
 """
 def run_exact(A, b):
-    A = np.array()
+    A = A.todense()
     #print np.linalg.det(A)
     x = np.dot(np.linalg.inv(A), b)
 
@@ -20,27 +20,59 @@ def run_exact(A, b):
 
 
 """SOLUTION BY SOR METHOD"""
-def run_SOR(A, b):
-    x= np.zeros(b.shape[0])
-    w = 1.3
+def run_SOR_noob(A, b):
+    x = np.zeros(b.shape[0])
+    w = 1.5
     n = b.shape[0]
     A=A.todense()
-    #A=A.tocsr()
-    print A.shape
-    for iteration in xrange(20):
-        for row in xrange(n):
-            s = 0.0
-            for col in xrange(n):
-                if col!=row:
-                    s = s + A[row,col] * x[col]
-            if A[row,row] != 0.0:
-                x[row] = x[row] + w*( (b[row]-s)/A[row,row] -x[row])
 
+    #rows,cols = A.nonzero()
+    print A.shape
+    for iteration in xrange(3):
+        s=np.zeros(b.shape[0])
+        for row in xrange(n):
+            #s[row] = 0.0
+            for col in xrange(n):
+                if col!=row and A[row,col] != 0.0:
+                    s[row] += A[row,col] * x[col]
+            if A[row,row] != 0.0:
+                x[row] += w*( (b[row]-s[row])/A[row,row] -x[row])
+        print "s=", s
+
+    print "SOR: x=", x
+    print "norm = ", residual_dense(A, x, b)
+
+def run_SOR(A,b):
+    x = np.zeros(b.shape[0])
+    w = 1.5
+    cols = b.shape[0]
+    D = A.diagonal()
+
+    for iteration in xrange(3):
+        s = np.zeros(b.shape[0])  
+
+        for i in xrange(cols):
+            rows = A.indices[A.indptr[i]:A.indptr[i+1]]
+            s[rows] += A.data[rows] * x[i]
+            s[i] -= x[i]*D[i]
+
+            if D[i]!=0.0:
+              x[i] += w*( (b[i]-s[i])/D[i] -x[i])
+        #s[cols-1] = x[cols-1]*D[cols-1]
+        """for row in xrange(cols):
+            if D[row]!=0.0:
+              x[row] += w*( (b[row]-s[row])/D[row] -x[row])"""
+        print "s=", s
     print "SOR: x=", x
     print "norm = ", residual(A, x, b)
 
+
 def residual(A, x, b):
+   A=A.todense()
    return  np.linalg.norm(b - np.dot(A,x))
+
+def residual_dense(A,x,b):
+  return np.linalg.norm(b - np.dot(A,x))
 
 with open('data/matrixA.dat', 'r') as f:
   f.readline()
@@ -73,13 +105,11 @@ indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
 indptrB -= 1
 
 A = csc_matrix((dataA, indicesA, indptrA))
-#print A
-#print A.shape
-#print A.todense()
 
-b=np.array(dataB)
-#b = csc_matrix((dataB, indicesB, indptrB), shape=(A.shape[0], 1), copy=True)
-#print b
-#print b.shape
+b = np.array(dataB)
 
+run_SOR_noob(A,b)
 run_SOR(A,b)
+
+
+#run_exact(A,b)

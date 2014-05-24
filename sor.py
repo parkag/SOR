@@ -74,6 +74,24 @@ def residual(A, x, b):
 def residual_dense(A,x,b):
   return np.linalg.norm(b - np.dot(A,x))
 
+def organize_values(A,col,rows): #returns non-zero elements and diagonal(1 row in values = 1 row in full matrix)
+  n = len(col)
+  values = []
+  
+  for i in xrange(n):
+    values.append([])
+  diagonal = np.zeros(n)
+
+  for i in xrange(n-1):
+    for j in xrange(col[i],col[i+1]):     
+      if i!=rows[j]:
+        values[rows[j]].append(float(A[j]))
+      else:
+        diagonal[rows[j]]=float(A[j])
+  #print diagonal
+  #print values
+  return (values,diagonal)
+
 with open('data/matrixA.dat', 'r') as f:
   f.readline()
   val_line = f.readline()
@@ -105,11 +123,11 @@ indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
 indptrB -= 1
 
 A = csc_matrix((dataA, indicesA, indptrA))
-
 b = np.array(dataB)
+(vals,diag)=organize_values(dataA,indptrA,indicesA) 
 
-run_SOR_noob(A,b)
-run_SOR(A,b)
+#run_SOR_noob(A,b)
+#run_SOR(A,b)
 
 
 #run_exact(A,b)

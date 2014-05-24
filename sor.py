@@ -22,18 +22,19 @@ def run_exact(A, b):
 """SOLUTION BY SOR METHOD"""
 def run_SOR(A, b):
     x= np.zeros(b.shape[0])
-    w = 1.2
-    n = len(x)
+    w = 1.3
+    n = b.shape[0]
     A=A.todense()
+    #A=A.tocsr()
     print A.shape
     for iteration in xrange(20):
-        for i in xrange(n-1):
-            s = 0
-            for j in xrange(n-1):
-                if j!=i:
-                    s = s + A[i,j] * x[j]
-            if A[i,i] != 0.0:
-                x[i] = x[i] + w*( (b[i]-s)/A[i,i] -x[i])
+        for row in xrange(n):
+            s = 0.0
+            for col in xrange(n):
+                if col!=row:
+                    s = s + A[row,col] * x[col]
+            if A[row,row] != 0.0:
+                x[row] = x[row] + w*( (b[row]-s)/A[row,row] -x[row])
 
     print "SOR: x=", x
     print "norm = ", residual(A, x, b)
@@ -57,7 +58,7 @@ indptrA -= 1
 #http://scipy-lectures.github.io/advanced/scipy_sparse/csc_matrix.html
 indptrA= np.append(indptrA, len(dataA))
 
-print indptrA.shape
+#print indptrA.shape
 
 with open('data/vectorB.dat', 'r') as f:
   f.readline()

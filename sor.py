@@ -66,6 +66,25 @@ def run_SOR(A,b):
     print "SOR: x=", x
     print "norm = ", residual(A, x, b)
 
+def my_SOR(D,L,U,cols,b):
+    x = np.zeros(b.shape[0])
+    oldX = np.copy(x)
+    w = 1.2
+    n = len(D)
+    for iteration in xrange(100):
+      for i in xrange(n-1):
+        s=np.zeros(n)
+        
+        for j in xrange(len(L[i])):
+          s[i] = s[i] + L[i][j]*x[cols[i][j]]
+        for j in xrange(len(U[i])):
+          s[i] = s[i] + U[i][j]*oldX[cols[i][j]]
+        s[i]=(b[i]-s[i])/D[i]
+        oldX=np.copy(x)
+        x[i]=oldX[i]+w*(s[i]-oldX[i])
+    print x
+
+
 
 def residual(A, x, b):
    A=A.todense()
@@ -78,22 +97,25 @@ def organize_values(A,col,rows): #returns non-zero elements and diagonal(1 row i
   n = len(col)
   L = []
   U = []
+  cols = []
   D = np.zeros(n)
   for i in xrange(n):
     L.append([])
     U.append([])
-  
+    cols.append([])
 
   for i in xrange(n-1):
     for j in xrange(col[i],col[i+1]):     
       if i<rows[j]:
         L[rows[j]].append(float(A[j]))
+        cols[rows[j]].append(i)
       elif i>rows[j]:
         U[rows[j]].append(float(A[j]))
       else:
         D[rows[j]]=float(A[j])
+        cols[rows[j]].append(i)
   #print values
-  return (D,L,U)
+  return (D,L,U,cols)
 
 with open('data/matrixA.dat', 'r') as f:
   f.readline()
@@ -125,11 +147,22 @@ indicesB -=1
 indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
 indptrB -= 1
 
-A = csc_matrix((dataA, indicesA, indptrA))
+#A = csc_matrix((dataA, indicesA, indptrA))
 b = np.array(dataB)
-(D,L,U) = organize_values(dataA,indptrA,indicesA)
+(D,L,U,cols) = organize_values(dataA,indptrA,indicesA)
 #run_SOR_noob(A,b)
 #run_SOR(A,b)
-
-
+my_SOR(D,L,U,cols,b)
+#with open('D.txt', 'w') as d:
+#  for item in D:
+#    print>>d, item
+#with open('L.txt', 'w') as l:
+#  for item in L:
+#    print>>l, item
+#with open('U.txt', 'w') as u:
+#  for item in U:
+#    print>>u, item
+#with open('cols.txt', 'w') as c:
+#  for item in cols:
+#    print>>c, item
 #run_exact(A,b)

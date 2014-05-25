@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.sparse import csc_matrix
-from matplotlib import pylab as plt
 
 """
 EXACT SOLUTION
@@ -19,7 +18,7 @@ def run_exact(A, b):
     print "x=", x
 
 
-"""SOLUTION BY SOR METHOD"""
+#SOLUTION BY SOR METHOD - bad approach
 def run_SOR_noob(A, b):
     x = np.zeros(b.shape[0])
     w = 1.5
@@ -42,29 +41,37 @@ def run_SOR_noob(A, b):
     print "SOR: x=", x
     print "norm = ", residual_dense(A, x, b)
 
+#SOLUTION BY SUCCESSIVE OVER RELAXATION METHOD
 def run_SOR(A,b):
+    """
+    References: 
+      http://en.wikipedia.org/wiki/Successive_over-relaxation
+      http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html
+    """
     x = np.zeros(b.shape[0])
-    w = 1.5
-    cols = b.shape[0]
+    w = 1.2
+    rows = b.shape[0]
     D = A.diagonal()
-
-    for iteration in xrange(3):
+    A = A.tocsr()
+    
+    for iteration in xrange(100):
         s = np.zeros(b.shape[0])  
+        for row in xrange(rows):
+            cols = A.indices[A.indptr[row]:A.indptr[row+1]]
+            
+            for j, col in enumerate(cols):
+                if col!=row:
+                    s[row] += A.data[A.indptr[row]:A.indptr[row+1]][j]*x[col]
 
-        for i in xrange(cols):
-            rows = A.indices[A.indptr[i]:A.indptr[i+1]]
-            s[rows] += A.data[rows] * x[i]
-            s[i] -= x[i]*D[i]
-
-            if D[i]!=0.0:
-              x[i] += w*( (b[i]-s[i])/D[i] -x[i])
-        #s[cols-1] = x[cols-1]*D[cols-1]
-        """for row in xrange(cols):
             if D[row]!=0.0:
-              x[row] += w*( (b[row]-s[row])/D[row] -x[row])"""
-        print "s=", s
-    print "SOR: x=", x
+                x[row] += w*( (b[row]-s[row])/D[row] - x[row])
+        
+    print "SOR: x=", x[120:125]
     print "norm = ", residual(A, x, b)
+
+
+def residual(A, x, b):
+   return  np.linalg.norm(b - A.dot(x))
 
 def my_SOR(D,L,U,cols,b):
     x = np.zeros(b.shape[0])
@@ -82,16 +89,8 @@ def my_SOR(D,L,U,cols,b):
         s[i]=(b[i]-s[i])/D[i]
         oldX=np.copy(x)
         x[i]=oldX[i]+w*(s[i]-oldX[i])
-    print x
-
-
-
-def residual(A, x, b):
-   A=A.todense()
-   return  np.linalg.norm(b - np.dot(A,x))
-
-def residual_dense(A,x,b):
-  return np.linalg.norm(b - np.dot(A,x))
+    print x[120:125]
+    return x
 
 def organize_values(A,col,rows): #returns non-zero elements and diagonal(1 row in values = 1 row in full matrix)
   n = len(col)
@@ -117,52 +116,54 @@ def organize_values(A,col,rows): #returns non-zero elements and diagonal(1 row i
   #print values
   return (D,L,U,cols)
 
-with open('data/matrixA.dat', 'r') as f:
-  f.readline()
-  val_line = f.readline()
-  ind_line = f.readline()
-  ptr_line = f.readline()
+if __name__ == "__main__":
 
-dataA = np.fromstring(val_line[6:-2], sep = " ", dtype=float)
-indicesA =  np.fromstring(ind_line[9:-2], sep = " ", dtype=int)
-indicesA -=1
-indptrA = np.fromstring(ptr_line[9:-2], sep = " ", dtype=int)
-indptrA -= 1
+  with open('data/matrixA.dat', 'r') as f:
+    f.readline()
+    val_line = f.readline()
+    ind_line = f.readline()
+    ptr_line = f.readline()
 
-#format required by scipy
-#http://scipy-lectures.github.io/advanced/scipy_sparse/csc_matrix.html
-indptrA= np.append(indptrA, len(dataA))
+  dataA = np.fromstring(val_line[6:-2], sep = " ", dtype=float)
+  indicesA =  np.fromstring(ind_line[9:-2], sep = " ", dtype=int)
+  indicesA -=1
+  indptrA = np.fromstring(ptr_line[9:-2], sep = " ", dtype=int)
+  indptrA -= 1
 
-#print indptrA.shape
+  #format required by scipy
+  #http://scipy-lectures.github.io/advanced/scipy_sparse/csc_matrix.html
+  indptrA= np.append(indptrA, len(dataA))
 
-with open('data/vectorB.dat', 'r') as f:
-  f.readline()
-  val_line = f.readline()
-  ind_line = f.readline()
-  ptr_line = f.readline()
+  with open('data/vectorB.dat', 'r') as f:
+    f.readline()
+    val_line = f.readline()
+    ind_line = f.readline()
+    ptr_line = f.readline()
 
-dataB = np.fromstring(val_line[6:-3], sep = " ", dtype=float)
-indicesB =  np.fromstring(ind_line[9:-3], sep = " ", dtype=int)
-indicesB -=1
-indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
-indptrB -= 1
+  dataB = np.fromstring(val_line[6:-3], sep = " ", dtype=float)
+  indicesB =  np.fromstring(ind_line[9:-3], sep = " ", dtype=int)
+  indicesB -=1
+  indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
+  indptrB -= 1
 
-#A = csc_matrix((dataA, indicesA, indptrA))
-b = np.array(dataB)
-(D,L,U,cols) = organize_values(dataA,indptrA,indicesA)
-#run_SOR_noob(A,b)
-#run_SOR(A,b)
-my_SOR(D,L,U,cols,b)
-#with open('D.txt', 'w') as d:
-#  for item in D:
-#    print>>d, item
-#with open('L.txt', 'w') as l:
-#  for item in L:
-#    print>>l, item
-#with open('U.txt', 'w') as u:
-#  for item in U:
-#    print>>u, item
-#with open('cols.txt', 'w') as c:
-#  for item in cols:
-#    print>>c, item
-#run_exact(A,b)
+  A = csc_matrix((dataA, indicesA, indptrA))
+  b = np.array(dataB)
+  (D,L,U,cols) = organize_values(dataA,indptrA,indicesA)
+  #run_SOR_noob(A,b)
+  run_SOR(A,b)
+  x = my_SOR(D,L,U,cols,b)
+
+  print residual(A,x,b)
+  #with open('D.txt', 'w') as d:
+  #  for item in D:
+  #    print>>d, item
+  #with open('L.txt', 'w') as l:
+  #  for item in L:
+  #    print>>l, item
+  #with open('U.txt', 'w') as u:
+  #  for item in U:
+  #    print>>u, item
+  #with open('cols.txt', 'w') as c:
+  #  for item in cols:
+  #    print>>c, item
+  #run_exact(A,b)

@@ -42,36 +42,47 @@ def run_SOR_noob(A, b):
     print "SOR: x=", x
     print "norm = ", residual_dense(A, x, b)
 
-def run_SOR(A,b):
+#SOLUTION BY SUCCESSIVE OVER RELAXATION METHOD
+def run_SOR(A,b,error):
+    """
+    References: 
+      http://en.wikipedia.org/wiki/Successive_over-relaxation
+      http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html
+    """
     x = np.zeros(b.shape[0])
     w = 1.5
-    cols = b.shape[0]
+    rows = b.shape[0]
     D = A.diagonal()
-
-    for iteration in xrange(3):
+    A = A.tocsr()
+    iterations = 0
+    err = 100.0
+    
+    while err > error:
         s = np.zeros(b.shape[0])  
+        for row in xrange(rows):
+            cols = A.indices[A.indptr[row]:A.indptr[row+1]]
+            
+            for j, col in enumerate(cols):
+                if col!=row:
+                    s[row] += A.data[A.indptr[row]:A.indptr[row+1]][j]*x[col]
 
-        for i in xrange(cols):
-            rows = A.indices[A.indptr[i]:A.indptr[i+1]]
-            s[rows] += A.data[rows] * x[i]
-            s[i] -= x[i]*D[i]
-
-            if D[i]!=0.0:
-              x[i] += w*( (b[i]-s[i])/D[i] -x[i])
-        #s[cols-1] = x[cols-1]*D[cols-1]
-        """for row in xrange(cols):
             if D[row]!=0.0:
-              x[row] += w*( (b[row]-s[row])/D[row] -x[row])"""
-        print "s=", s
-    print "SOR: x=", x
-    print "norm = ", residual(A, x, b)
+                x[row] += w*( (b[row]-s[row])/D[row] - x[row])
+        iterations += 1
+        err = my_residual(A,x,b)
+        print err
 
-def my_SOR(D,L,U,colsL,colsU,b):
+    print "SOR: x=", x
+    print "norm = ", my_residual(A, x, b)
+    print "iterations:", iterations
+
+
+def my_SOR(D,L,U,colsL,colsU,b,A):
     x = np.zeros(b.shape[0])
     oldX = np.copy(x)
-    w = 1.6
+    w = 1.5
     n = len(D)
-
+    A=A.tocsr()
     for iteration in xrange(100):
       s=np.zeros(n)
       for row in xrange(n-1):  
@@ -84,10 +95,13 @@ def my_SOR(D,L,U,colsL,colsU,b):
 
         oldX=np.copy(x)
         x[row]+= w * ((b[row]-s[row]) / D[row] - x[row])
+      print my_residual(A,x,b)
 
     return x
 
 
+def my_residual(A,x,b):
+  return np.linalg.norm(b-A.dot(x))
 
 def residual(A, x, b):
    A=A.todense()
@@ -152,15 +166,19 @@ dataB = np.fromstring(val_line[6:-3], sep = " ", dtype=float)
 #indptrB = np.fromstring(ptr_line[9:-3], sep = " ", dtype=int)
 #indptrB -= 1
 
-#A = csc_matrix((dataA, indicesA, indptrA))
+A = csc_matrix((dataA, indicesA, indptrA))
 b = np.array(dataB)
 (D,L,U,colsL,colsU) = organize_values(dataA,indptrA,indicesA)
 
-x = my_SOR(D,L,U,colsL,colsU,b)
 
-with open('Xsolution', 'w') as solX:
-  for item in x:
-      print>>solX, item
+x = my_SOR(D,L,U,colsL,colsU,b, A)
+print "DP/\---------------------------\/GP"
+run_SOR(A,b, error=1.0)
+
+
+#with open('Xsolution', 'w') as solX:
+#  for item in x:
+#      print>>solX, item
 #with open('D.txt', 'w') as d:
 #  for item in D:
 #    print>>d, item

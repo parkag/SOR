@@ -15,32 +15,7 @@ def run_exact(A, b):
     A = A.todense()
     #print np.linalg.det(A)
     x = np.dot(np.linalg.inv(A), b)
-
     print "x=", x
-
-
-"""SOLUTION BY SOR METHOD"""
-def run_SOR_noob(A, b):
-    x = np.zeros(b.shape[0])
-    w = 1.5
-    n = b.shape[0]
-    A=A.todense()
-
-    #rows,cols = A.nonzero()
-    print A.shape
-    for iteration in xrange(3):
-        s=np.zeros(b.shape[0])
-        for row in xrange(n):
-            #s[row] = 0.0
-            for col in xrange(n):
-                if col!=row and A[row,col] != 0.0:
-                    s[row] += A[row,col] * x[col]
-            if A[row,row] != 0.0:
-                x[row] += w*( (b[row]-s[row])/A[row,row] -x[row])
-        print "s=", s
-
-    print "SOR: x=", x
-    print "norm = ", residual_dense(A, x, b)
 
 #SOLUTION BY SUCCESSIVE OVER RELAXATION METHOD
 def run_SOR(A,b,error):
@@ -50,13 +25,19 @@ def run_SOR(A,b,error):
       http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html
     """
     x = np.zeros(b.shape[0])
-    w = 1.5
+    w_0 = 1.5
     rows = b.shape[0]
     D = A.diagonal()
     A = A.tocsr()
     iterations = 0
-    err = 100.0
-    
+    #err = 100.0
+
+    w_prev_prev = w_0 + 0.1
+    w_prev = w_0 + 0.05
+    w = w_0
+
+    err = my_residual(A,x,b)
+    err_prev = err + 1.0
     while err > error:
         s = np.zeros(b.shape[0])  
         for row in xrange(rows):
@@ -69,18 +50,40 @@ def run_SOR(A,b,error):
             if D[row]!=0.0:
                 x[row] += w*( (b[row]-s[row])/D[row] - x[row])
         iterations += 1
+
+        err_prev_prev = err_prev
+        err_prev = err
         err = my_residual(A,x,b)
-        print err
+        print "omega = ", w
+        print "prev_omega = ", w_prev
+        print "norm(error): ", err
+        print "prev_norm: ", err_prev
+        if iterations%2 == 0:
+          [w, w_prev, w_prev_prev] = update_omega(err, err_prev, err_prev_prev, w, w_prev, w_prev_prev)
 
     print "SOR: x=", x
     print "norm = ", my_residual(A, x, b)
     print "iterations:", iterations
 
+def update_omega(norm, prev_norm, prev_prev_norm, omega, prev_omega, prev_prev_omega):
+    """ 
+    References:
+    http://www.researchgate.net/publication/2651797_Adaptive_SOR_A_case_study_in_automatic_differentiation_of_algorithm_parameters
+    """
+    d_om = omega - prev_omega
+    d_om2 = prev_omega - prev_prev_omega
+    d_err = norm - prev_norm
+    d_err2 = prev_norm - prev_prev_norm
+    d_omega = min(0.05, (d_err/d_om)*(omega - prev_omega)/(d_err/d_om - d_err2/d_om2 ))
+    print d_omega
+    prev_omega = omega
+    omega = max(0.5, min(1.985, omega+d_omega))
+    return [omega, prev_omega, prev_prev_omega]
 
 def my_SOR(D,L,U,colsL,colsU,b,A):
     x = np.zeros(b.shape[0])
     oldX = np.copy(x)
-    w = 1.5
+    w = 1.9
     n = len(D)
     A=A.tocsr()
     for iteration in xrange(100):
@@ -168,12 +171,12 @@ dataB = np.fromstring(val_line[6:-3], sep = " ", dtype=float)
 
 A = csc_matrix((dataA, indicesA, indptrA))
 b = np.array(dataB)
-(D,L,U,colsL,colsU) = organize_values(dataA,indptrA,indicesA)
+#(D,L,U,colsL,colsU) = organize_values(dataA,indptrA,indicesA)
 
 
-x = my_SOR(D,L,U,colsL,colsU,b, A)
+#x = my_SOR(D,L,U,colsL,colsU,b, A)
 print "DP/\---------------------------\/GP"
-run_SOR(A,b, error=1.0)
+run_SOR(A,b, error=.000001)
 
 
 #with open('Xsolution', 'w') as solX:

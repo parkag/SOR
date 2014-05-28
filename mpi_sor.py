@@ -47,6 +47,7 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
     colsU=comm.bcast(colsU,root=0)
     L=comm.bcast(L,root=0)
     U=comm.bcast(U,root=0)
+    b=comm.bcast(b,root=0)
 
 
     if rank == 0:
@@ -67,8 +68,8 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
       #colsL=comm.recv(0,tag=rank+99)
       #colsU=comm.recv(0,tag=rank+100)
     
-    for iteration in xrange(100):
-      #print iteration
+    for iteration in xrange(10):
+      print iteration
       s=np.zeros(privateN)
       for row in xrange(privateN):  
 
@@ -78,20 +79,19 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
         for j in xrange(len(U[row+f])):
           s[row] += U[row+f][j]*oldX[colsU[row+f][j]]
 
-        # tutaj kurwa epickie synchro
         if rank != 0:
           comm.send(x[f:l],dest=0,tag=rank)
         else:
           for i in xrange(1,size):
-            #tutaj jest chujnia 
-            print "i ",ranges[i]," ",ranges[i+1]
-            x[ranges[i:i+1]]=comm.recv(source=i,tag=i)
-
-        x=comm.bcast(x,root=0)
-        #print "Moj tank",rank
-        oldX=np.copy(x)
-        #print "X ", len(x)
-        x[row+f]+= w * ((b[row+f]-s[row]) / D[row+f] - x[row+f])
+            tmp=comm.recv(source=i,tag=i)
+            y=0
+            for z in xrange(int(ranges[i]),int(ranges[i+1])):
+              x[z]=tmp[y]
+              y+=1
+        if iteration!=10:
+          x=comm.bcast(x,root=0)
+          oldX=np.copy(x)
+          x[row+f]+= w * ((b[row+f]-s[row]) / D[row] - x[row+f])
        
       
     if rank == 0:
@@ -139,10 +139,10 @@ def compute_range(n,size):
   j = 0
   for i in xrange(0,size):
     if i<rest:
-      rangeList[i+1]=(i+1)*elems+1+j
+      rangeList[i+1]=int((i+1)*elems+1+j)
       j += 1
     else:
-      rangeList[i+1]=(i+1)*elems+j
+      rangeList[i+1]=int((i+1)*elems+j)
   return rangeList
 
 

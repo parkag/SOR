@@ -70,7 +70,7 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
     
     for iteration in xrange(100):
       s=np.zeros(privateN)
-      print iteration
+      #print iteration
       for row in xrange(privateN):  
 
         for j in xrange(len(L[row+f])):
@@ -84,11 +84,8 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
       else:
         #ta petle poprawic - tmp otrzymuje czesc wektora x i zeby jakos szybciej zapisac nie po petli
         for i in xrange(1,size):
-          tmp=comm.recv(source=i,tag=i)
-          y=0
-          for z in xrange(int(ranges[i]),int(ranges[i+1])):
-            x[z]=tmp[y]
-            y+=1         
+          tmpx=comm.recv(source=i,tag=i)
+          x[int(ranges[i]):int(ranges[i+1])]=tmpx[0:len(tmpx)]       
       x=comm.bcast(x,root=0)
       if my_residual(A,x,b)<0.1:
         break          

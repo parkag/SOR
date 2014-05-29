@@ -1,3 +1,2 @@
 odpalasz:
-blad w 86 linii masz poprawic albo wpierdol
-mpiexec -np 2 python my_sor.py
+mpiexec -np 2 python my_sor.py   lub inne liczbe zamiast 2

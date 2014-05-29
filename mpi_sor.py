@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.sparse import csc_matrix
 from mpi4py import MPI
+import time 
 #TODO: 
 # -my_SOR parallel
 # -fix bcast to send
@@ -17,7 +18,7 @@ def run_exact(A, b):
 def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
     n = 0
     privateN = 0
-    w = 1.5
+    w = 1.6
     myValues = []
 
     if rank == 0:
@@ -35,20 +36,19 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
       myValues.append(ranges[1])      
     else:
       myValues=comm.recv(0, tag=rank) 
-
-    #print "Moj rank ", rank, " Wartosci " , myValues
     
 
     f=int(myValues[0])
     l=int(myValues[1])
     privateN = l-f
-    
+
     colsL=comm.bcast(colsL,root=0)
     colsU=comm.bcast(colsU,root=0)
     L=comm.bcast(L,root=0)
     U=comm.bcast(U,root=0)
     b=comm.bcast(b,root=0)
-
+    A=comm.bcast(A,root=0)
+    
 
     if rank == 0:
       for i in xrange(1,size):
@@ -68,9 +68,9 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
       #colsL=comm.recv(0,tag=rank+99)
       #colsU=comm.recv(0,tag=rank+100)
     
-    for iteration in xrange(10):
-      print iteration
+    for iteration in xrange(100):
       s=np.zeros(privateN)
+      print iteration
       for row in xrange(privateN):  
 
         for j in xrange(len(L[row+f])):
@@ -78,24 +78,26 @@ def my_SOR(D,L,U,colsL,colsU,b,A,rank,size):
 
         for j in xrange(len(U[row+f])):
           s[row] += U[row+f][j]*oldX[colsU[row+f][j]]
-
-        if rank != 0:
+        x[row+f]+= w * ((b[row+f]-s[row]) / D[row] - x[row+f])  
+      if rank != 0:
           comm.send(x[f:l],dest=0,tag=rank)
-        else:
-          for i in xrange(1,size):
-            tmp=comm.recv(source=i,tag=i)
-            y=0
-            for z in xrange(int(ranges[i]),int(ranges[i+1])):
-              x[z]=tmp[y]
-              y+=1
-        if iteration!=10:
-          x=comm.bcast(x,root=0)
-          oldX=np.copy(x)
-          x[row+f]+= w * ((b[row+f]-s[row]) / D[row] - x[row+f])
-       
+      else:
+        #ta petle poprawic - tmp otrzymuje czesc wektora x i zeby jakos szybciej zapisac nie po petli
+        for i in xrange(1,size):
+          tmp=comm.recv(source=i,tag=i)
+          y=0
+          for z in xrange(int(ranges[i]),int(ranges[i+1])):
+            x[z]=tmp[y]
+            y+=1         
+      x=comm.bcast(x,root=0)
+      if my_residual(A,x,b)<0.1:
+        break          
+      oldX=np.copy(x)         
       
+       
+    
     if rank == 0:
-      print my_residual(A,x,b)
+      print "Error %f" % my_residual(A,x,b)  
       return x
     else:
       exit 
@@ -186,7 +188,7 @@ else:
 #SOR :)
 x = my_SOR(D,L,U,colsL,colsU,b, A,rank,size)
 
-#if rank==0:
-# with open('Xsolution', 'w') as solX:
-#    for item in x:
-#        print>>solX, item
+if rank==0:
+ with open('Xsolutions', 'w') as solX:
+    for item in x:
+        print>>solX, item

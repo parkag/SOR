@@ -4,9 +4,13 @@ import numpy as np
 from scipy.sparse import csc_matrix
 from mpi4py import MPI
 
+
+
 comm = MPI.COMM_WORLD
 rank = MPI.COMM_WORLD.Get_rank()
 size = MPI.COMM_WORLD.Get_size()
+if rank ==0:
+  start = time.time()
 
 def run_exact(A, b):
     A = A.todense()
@@ -22,17 +26,23 @@ def my_SOR(D, L, U, colsL, colsU, b, A, rank, size, error):
     error - maximum acceptable error
     A - csr matrix for fast norm calculation
     """
-    n = 0
-    privateN = 0
-    w = 1.6
-    myValues = []
+    n = 0 #all rows
+    privateN = 0  #n-rows for each process
+    w = 1.6 #omega
+    myValues = [] # list for private process ranges
 
     if rank == 0:
       n = len(D)
 
-    n = comm.bcast(n, root = 0)    
-    x = np.zeros(n)
-    oldX = np.copy(x) 
+  #-----------------------------------------------------
+    n = comm.bcast(n, root = 0)  
+    colsL = comm.bcast(colsL, root = 0)
+    colsU = comm.bcast(colsU, root = 0)
+    L = comm.bcast(L, root = 0)
+    U = comm.bcast(U, root = 0)
+    b = comm.bcast(b, root = 0)
+    A = comm.bcast(A, root = 0)   
+  #------------------------------------------------------
 
     if rank == 0:     
       ranges = compute_range(n, size)
@@ -42,24 +52,19 @@ def my_SOR(D, L, U, colsL, colsU, b, A, rank, size, error):
       myValues.append(ranges[1])      
     else:
       myValues = comm.recv(source = 0, tag = rank) 
-    
-    f = int(myValues[0])
-    l = int(myValues[1])
-    privateN = l-f
-
-    colsL = comm.bcast(colsL, root = 0)
-    colsU = comm.bcast(colsU, root = 0)
-    L = comm.bcast(L, root = 0)
-    U = comm.bcast(U, root = 0)
-    b = comm.bcast(b, root = 0)
-    A = comm.bcast(A, root = 0)
-    
-
+  #sending diagonal
     if rank == 0:
       for i in xrange(1, size):
         comm.send(D[ranges[i]:ranges[i+1]], dest = i, tag = i)
     else:
       D = comm.recv(0, tag = rank)
+  #---------------------------------------------------------
+    x = np.zeros(n)
+    oldX = np.copy(x)     
+
+    f = int(myValues[0])
+    l = int(myValues[1])
+    privateN = l-f
     
     for iteration in xrange(100):
       s = np.zeros(privateN)
@@ -193,6 +198,11 @@ else:
 #finally running SOR
 #--------------------------------
 x = my_SOR(D, L, U, colsL, colsU, b, A,rank, size, error=float(sys.argv[3]))
+
+
+end = time.time()
+print "Czas %f s" % (end-start)
+
 
 if rank == 0:
  with open('Xsolutions', 'w') as solX:
